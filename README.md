@@ -3,7 +3,7 @@ Parses yml files to retrieve the given value
 ## Installation
 
 ```
-go install github.com/reactiveraven/ymlparse...
+go get github.com/reactiveraven/ymlparse
 ```
 
 ## Usage

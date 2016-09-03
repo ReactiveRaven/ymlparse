@@ -7,24 +7,10 @@ import (
 	"log"
 	"os"
 	"regexp"
+	"strings"
 
 	"gopkg.in/yaml.v2"
 )
-
-var command = "fish.and.chips"
-
-func fileExists(filename string) bool {
-	prefix := "./"
-	prefixBuffer := make([]byte, len(filename)+2)
-	prefixBufferPointer := copy(prefixBuffer, prefix)
-	copy(prefixBuffer[prefixBufferPointer:], filename)
-
-	prefixed := string(prefixBuffer)
-
-	_, err := os.Stat(prefixed)
-	// fmt.Println(prefixed, "?", err == nil)
-	return err == nil
-}
 
 func main() {
 
@@ -42,14 +28,10 @@ func main() {
 	bits := overflow
 
 	// handle automatically generating the '.override.yml'
-	if overrideFilename == defaultOverrideFilename && inputFilename != defaultInputFilename {
-		if !fileExists(overrideFilename) {
-			replaceYmlSuffix := regexp.MustCompile("\\.yml$")
-			newOverrideFilename := replaceYmlSuffix.ReplaceAllString(inputFilename, ".override.yml")
-			if fileExists(newOverrideFilename) {
-				overrideFilename = newOverrideFilename
-			}
-		}
+	if overrideFilename == defaultOverrideFilename && inputFilename != defaultInputFilename && !fileExists(overrideFilename) {
+		replaceYmlSuffix := regexp.MustCompile("\\.yml$")
+		newOverrideFilename := replaceYmlSuffix.ReplaceAllString(inputFilename, ".override.yml")
+		overrideFilename = newOverrideFilename
 	}
 
 	// Load files in
@@ -66,48 +48,34 @@ func main() {
 	}
 
 	// Unmarshal
-	var main interface{}
-	mainFile := make(map[interface{}]interface{})
-	err = yaml.Unmarshal([]byte(data), &mainFile)
-	if err != nil {
-		log.Fatalf("error: %v", err)
-	}
-	main = mainFile
-
-	var override interface{}
-	overrideFile := make(map[interface{}]interface{})
-	err = yaml.Unmarshal([]byte(dataoverride), &overrideFile)
-	if err != nil {
-		log.Fatalf("error: %v", err)
-	}
-	override = overrideFile
+	main := unmarshal(data)
+	override := unmarshal(dataoverride)
 
 	// Drill down with the command string
 	for _, element := range bits {
-		if main != nil {
-			if val, ok := main.(map[interface{}]interface{})[element]; ok {
-				main = val
-			} else {
-				main = nil
-			}
-		}
-
-		if override != nil {
-			if val, ok := override.(map[interface{}]interface{})[element]; ok {
-				override = val
-			} else {
-				override = nil
-			}
-		}
+		main = drilldownObject(main, element)
+		override = drilldownObject(override, element)
 	}
 
 	// Output the result, or die with exit 1
 	if override != nil {
-		fmt.Print(override)
+		marshalled, err := yaml.Marshal(override)
+		if err != nil {
+			log.Fatalf("error: failed to marshal response: %s", err)
+		}
+		fmt.Print(string(marshalled))
 	} else if main != nil {
-		fmt.Print(main)
+		marshalled, err := yaml.Marshal(main)
+		if err != nil {
+			log.Fatalf("error: failed to marshal response: %s", err)
+		}
+		fmt.Print(string(marshalled))
 	} else {
-		os.Exit(1)
+		log.Fatalf(
+			"error: could not find path '%s' in either '%s' or '%s'",
+			strings.Join(bits, "','"),
+			inputFilename,
+			overrideFilename)
 	}
 
 }
