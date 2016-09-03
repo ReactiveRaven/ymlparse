@@ -25,7 +25,7 @@ overridden value
 
 options:
 
-| flag | |
-| ---- | - |
+| flag | description |
+| ---- | ---- |
 | i | input file to read from |
 | override | override file to read from (attempts to find `input`.override.yml if not provided) |
